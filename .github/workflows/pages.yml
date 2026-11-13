@@ -51,6 +51,8 @@ jobs:
 
       - name: Build localized pages and offline game
         run: pnpm build
+        env:
+          BASE_PATH: /tihuqiche/
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

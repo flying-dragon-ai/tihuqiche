@@ -7,6 +7,7 @@ import { messages } from '../src/locales.js';
 import { LEVELS } from '../src/levels.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const base = process.env.BASE_PATH || '/';
 const read = (path) => readFile(`${root}${path}`, 'utf8');
 const licenses =
   (await read('LICENSE')) + '\nThree.js 0.160.1\n' + (await read('vendor/three/LICENSE'));
@@ -25,14 +26,14 @@ function pageHtml({ template, markup, locale, offline = false }) {
     );
 }
 
-function imageUrls(result) {
+function imageUrls(result, base) {
   const online = new Map();
   const offline = new Map();
   for (const { output } of [result].flat()) {
     for (const asset of output) {
       if (asset.type !== 'asset' || !asset.fileName.endsWith('.png')) continue;
       for (const original of asset.originalFileNames) {
-        online.set(`/${original}`, `/${asset.fileName}`);
+        online.set(`/${original}`, `${base}${asset.fileName}`);
         offline.set(
           `/${original}`,
           `data:image/png;base64,${Buffer.from(asset.source).toString('base64')}`,
@@ -43,6 +44,10 @@ function imageUrls(result) {
   return { online, offline };
 }
 
+function normalizeAssetSources(markup, base) {
+  return base === '/' ? markup : markup.replaceAll(`${base}src/assets/`, '/src/assets/');
+}
+
 function resolveImages(markup, urls) {
   return markup.replace(/\bsrc="(\/src\/assets\/[^"]+)"/g, (_, source) => {
     assert(urls.has(source), `预渲染图片缺少构建映射: ${source}`);
@@ -50,17 +55,18 @@ function resolveImages(markup, urls) {
   });
 }
 
-async function assertOnlineImages(html) {
+async function assertOnlineImages(html, base) {
   assert(!html.includes('data:image/'), '在线 HTML 不能内嵌图片');
-  assert(!html.includes('/src/'), '在线 HTML 不能引用源目录');
+  const sourceRef = html.match(/.{0,80}\/src\/.{0,80}/s)?.[0];
+  assert(!sourceRef, `在线 HTML 不能引用源目录: ${sourceRef}`);
   for (const [tag] of html.matchAll(/<img\b[^>]*>/g)) {
     const source = tag.match(/\bsrc="([^"]+)"/)?.[1];
-    assert(source?.startsWith('/assets/'), `在线图片必须使用根路径构建资源: ${tag}`);
-    await readFile(`${root}dist${source}`);
+    assert(source?.startsWith(`${base}assets/`), `在线图片必须使用构建资源路径: ${tag}`);
+    await readFile(`${root}dist/${source.slice(base.length)}`);
   }
 }
 
-const urls = imageUrls(await build({ root }));
+const urls = imageUrls(await build({ root, base }), base);
 for (const source of [
   'pelican-mark.png',
   ...(await readdir(`${root}src/assets/outfits`))
@@ -69,11 +75,11 @@ for (const source of [
 ]) {
   const url = urls.online.get(`/src/assets/${source}`);
   assert(
-    url && /^\/assets\/.+-[\w-]+\.png$/.test(url),
+    url && url.startsWith(`${base}assets/`) && url.endsWith('.png'),
     `图片必须输出带 hash 的独立文件: ${source}`,
   );
   assert.deepEqual(
-    await readFile(`${root}dist${url}`),
+    await readFile(`${root}dist/${url.slice(base.length)}`),
     await readFile(`${root}src/assets/${source}`),
     `图片构建映射内容必须一致: ${source}`,
   );
@@ -91,8 +97,12 @@ try {
   for (const locale of ['zh', 'en']) {
     const markup = await render(locale);
     if (locale === 'zh') chineseMarkup = markup;
-    const html = pageHtml({ template, markup: resolveImages(markup, urls.online), locale });
-    await assertOnlineImages(html);
+    const html = pageHtml({
+      template,
+      markup: resolveImages(normalizeAssetSources(markup, base), urls.online),
+      locale,
+    });
+    await assertOnlineImages(html, base);
     assert(html.includes(messages[locale].title), '静态页面必须含对应语言标题');
     for (const level of LEVELS)
       assert(html.includes(locale === 'en' ? level.en : level.name), '静态页面必须含全部关卡');
@@ -106,10 +116,15 @@ try {
 
 const offlineDirectory = `${root}dist/.offline`;
 try {
-  await build({ root, mode: 'offline', build: { outDir: offlineDirectory, copyPublicDir: false } });
+  await build({
+    root,
+    mode: 'offline',
+    base: './',
+    build: { outDir: offlineDirectory, copyPublicDir: false },
+  });
   let offline = pageHtml({
     template: await read('dist/.offline/index.html'),
-    markup: resolveImages(chineseMarkup, urls.offline),
+    markup: resolveImages(normalizeAssetSources(chineseMarkup, base), urls.offline),
     locale: 'zh',
     offline: true,
   });

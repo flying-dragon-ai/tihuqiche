@@ -2,8 +2,10 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { renderSeo } from './src/seo.js';
+const base = process.env.BASE_PATH || '/';
 
 export default defineConfig(({ mode }) => ({
+  base: mode === 'offline' ? './' : base,
   plugins: [
     vue(),
     {
