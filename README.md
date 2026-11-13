@@ -11,6 +11,7 @@
 [![在线游玩](https://img.shields.io/badge/PLAY-tihuqiche.com-2f8f83?style=for-the-badge&logo=googlechrome&logoColor=white)](https://tihuqiche.com/)
 [![English](https://img.shields.io/badge/PLAY-English-2f8f83?style=for-the-badge&logo=googlechrome&logoColor=white)](https://tihuqiche.com/en/)
 [![离线单文件](https://img.shields.io/badge/DOWNLOAD-offline.html-2f8f83?style=for-the-badge&logo=html5&logoColor=white)](https://tihuqiche.com/offline.html)
+[![GitHub Pages](https://img.shields.io/badge/PREVIEW-flying--dragon--ai.github.io-2f8f83?style=for-the-badge&logo=githubpages&logoColor=white)](https://flying-dragon-ai.github.io/tihuqiche/)
 
 [![GitHub stars](https://img.shields.io/github/stars/flying-dragon-ai/tihuqiche?style=flat-square&logo=github&color=2f8f83)](https://github.com/flying-dragon-ai/tihuqiche/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/flying-dragon-ai/tihuqiche?style=flat-square&logo=github&color=2f8f83)](https://github.com/flying-dragon-ai/tihuqiche/network/members)
