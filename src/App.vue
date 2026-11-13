@@ -1,0 +1,237 @@
+<script setup>
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  provide,
+  reactive,
+  ref,
+  toRef,
+  watch,
+} from 'vue';
+import TopBar from './components/TopBar.vue';
+import HomeMenu from './components/HomeMenu.vue';
+import GameCanvas from './components/GameCanvas.vue';
+import GameHud from './components/GameHud.vue';
+import GameControls from './components/GameControls.vue';
+import GameOverlays from './components/GameOverlays.vue';
+import GameSettings from './components/GameSettings.vue';
+import SpeedWind from './components/SpeedWind.vue';
+import { LEVELS } from './levels.js';
+import { messages, translate } from './locales.js';
+import { createPreferences } from './preferences.js';
+import { createGameSettings } from './game-settings.js';
+import { emptyAppearance, readAppearance, emptySave, readSave } from './storage.js';
+import { initialGameState } from './game.js';
+import { isMobileDevice } from './input.js';
+import Wardrobe from './components/Wardrobe.vue';
+import { finishBoot, failBoot } from './boot.js';
+import { useToast } from './composables/use-toast.js';
+import { useWardrobe } from './composables/use-wardrobe.js';
+
+const props = defineProps({ initialLocale: { type: String, default: 'zh' } });
+const state = reactive(initialGameState()),
+  save = reactive(emptySave());
+const selected = ref(0),
+  helpOpen = ref(false),
+  settingsOpen = ref(false),
+  hitFlash = ref(0);
+const ready = ref(false),
+  error = ref(null);
+const selectedMode = ref('campaign'),
+  saveWritable = ref(true),
+  appearance = reactive(emptyAppearance());
+const isMobile = ref(false);
+let engine,
+  toastObserver,
+  homePreviewCanvas = null,
+  wardrobePreviewCanvas = null;
+let resolveEngine;
+const engineConnected = new Promise((resolve) => {
+  resolveEngine = resolve;
+});
+const { toastData, toastElement, toastHeight, toastMessage, clearToast, notify } = useToast(
+  () => t,
+  () => levelName,
+);
+const {
+  wardrobeOpen,
+  wardrobeSeat,
+  wardrobeDraft,
+  wardrobeScene,
+  wardrobeAuto,
+  openWardrobe,
+  cancelWardrobe,
+  saveWardrobe,
+} = useWardrobe({ appearance, getEngine: () => engine, notify });
+const preferences = createPreferences(props.initialLocale, notify);
+const gameSettings = createGameSettings(notify);
+const { settings, setSetting, error: settingsError } = gameSettings;
+const soundEnabled = toRef(settings, 'soundEnabled');
+const { locale, dark } = preferences;
+const copy = computed(() => messages[locale.value]);
+const t = (key, values) => translate(locale.value, key, values);
+const levelName = (index) => (locale.value === 'zh' ? LEVELS[index].name : LEVELS[index].en);
+function closeHelp() {
+  helpOpen.value = false;
+}
+function openSettings() {
+  if (state.mode === 'home' && !wardrobeOpen.value && !helpOpen.value) settingsOpen.value = true;
+}
+function closeSettings() {
+  settingsOpen.value = false;
+}
+const modalOpen = computed(
+  () =>
+    helpOpen.value ||
+    wardrobeOpen.value ||
+    settingsOpen.value ||
+    ['paused', 'won', 'lost', 'ended'].includes(state.mode),
+);
+const app = {
+  selectedMode,
+  saveWritable,
+  appearance,
+  isMobile,
+  wardrobeOpen,
+  wardrobeSeat,
+  wardrobeDraft,
+  wardrobeScene,
+  wardrobeAuto,
+  openWardrobe,
+  cancelWardrobe,
+  saveWardrobe,
+  state,
+  save,
+  selected,
+  helpOpen,
+  soundEnabled,
+  hitFlash,
+  ready,
+  error,
+  copy,
+  t,
+  levelName,
+  notify,
+  clearToast,
+  closeHelp,
+  settings,
+  setSetting,
+  settingsError,
+  settingsOpen,
+  openSettings,
+  closeSettings,
+  ...preferences,
+  selectLevel: (index) => engine.selectLevel(index),
+  startLevel: (index) => engine.startLevel(index),
+  selectMode: (mode) => engine.selectMode(mode),
+  startRun: (options) => engine.startRun(options),
+  attachHomePreview: (canvas) => {
+    homePreviewCanvas = canvas;
+    if (engine) engine.attachHomePreview(canvas);
+  },
+  attachWardrobePreview: (canvas) => {
+    wardrobePreviewCanvas = canvas;
+    if (engine) engine.attachWardrobePreview(canvas);
+  },
+  rotateWardrobePreview: (delta) => engine.rotateWardrobePreview(delta),
+  setHomePreviewPlayer: (seat) => engine.setHomePreviewPlayer(seat),
+  rotateHomePreview: (delta) => engine.rotateHomePreview(delta),
+  setHomePreviewAuto: (enabled) => engine.setHomePreviewAuto(enabled),
+  endRun: () => engine.endRun(),
+  previewRider: (options) => engine.previewRider(options),
+  goHome: () => engine.goHome(),
+  pauseGame: () => engine.pauseGame(),
+  resumeGame: () => engine.resumeGame(),
+  action: (payload) => engine.action(payload),
+  toggleSound: () => engine.toggleSound(),
+  previewSound: () => engine.previewSound(),
+};
+provide('app', app);
+function connected(value) {
+  engine = value;
+  engine.attachHomePreview(homePreviewCanvas);
+  engine.attachWardrobePreview(wardrobePreviewCanvas);
+  ready.value = true;
+  resolveEngine();
+}
+watch(dark, (value) => {
+  document.documentElement.dataset.theme = value ? 'dark' : 'light';
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', value ? '#142b2c' : '#bce6db');
+  engine?.setAppearance();
+});
+watch(locale, () => engine?.setLanguage());
+watch(settings, () => engine?.applySettings(), { deep: true });
+watch(
+  error,
+  (value) => {
+    if (value)
+      failBoot(new Error(value.detail || copy.value[value.description]), {
+        ...copy.value,
+        errorTitle: copy.value[value.title],
+        errorHelp: copy.value[value.description],
+      });
+  },
+  { flush: 'sync' },
+);
+watch(
+  () => state.mode,
+  (mode) => document.body.classList.toggle('playing', mode !== 'home'),
+);
+onMounted(async () => {
+  toastObserver = new ResizeObserver(() => {
+    toastHeight.value = toastElement.value.offsetHeight;
+  });
+  toastObserver.observe(toastElement.value);
+  preferences.init();
+  gameSettings.init();
+  const loaded = readSave(notify);
+  Object.assign(save, loaded.save);
+  saveWritable.value = loaded.writable;
+  Object.assign(appearance, readAppearance(notify));
+  isMobile.value = isMobileDevice();
+  selected.value = save.records.campaign.unlocked - 1;
+  await engineConnected;
+  engine.restoreRiders();
+  engine.applySettings();
+  engine?.selectLevel(selected.value);
+  engine?.setAppearance();
+  engine?.setLanguage();
+  document.documentElement.dataset.theme = dark.value ? 'dark' : 'light';
+  await nextTick();
+  if (!error.value) await finishBoot(engine, copy.value);
+});
+onUnmounted(() => {
+  toastObserver.disconnect();
+  preferences.dispose();
+  clearToast();
+  document.body.classList.remove('playing');
+});
+</script>
+
+<template>
+  <GameCanvas @ready="connected" />
+  <div id="shade" aria-hidden="true"></div>
+  <div id="hitflash" :style="{ opacity: hitFlash }" aria-hidden="true"></div>
+  <SpeedWind />
+  <div
+    :class="{ 'has-notice': toastData }"
+    :style="{ '--notice-height': `${toastHeight}px` }"
+    :hidden="wardrobeOpen"
+    :inert="modalOpen || !ready || Boolean(error)"
+  >
+    <TopBar />
+    <HomeMenu />
+    <GameHud />
+    <GameControls />
+  </div>
+  <GameOverlays />
+  <Wardrobe />
+  <GameSettings />
+  <div id="toast" ref="toastElement" role="status" aria-live="polite" :class="{ show: toastData }">
+    {{ toastMessage }}
+  </div>
+</template>

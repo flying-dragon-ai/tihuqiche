@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["src/entry-server.js", "tests/startup.cjs", "scripts/*.mjs"],
+  "project": ["src/**/*.{js,vue}", "tests/**/*.{js,cjs}", "scripts/**/*.mjs"],
+  "ignoreUnresolved": ["/src/*"]
+}

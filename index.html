@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-CN" data-boot="loading">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#bce6db" />
+    <script>
+      let appearance = 'system';
+      try {
+        appearance = localStorage.getItem('pelican-theme') || 'system';
+      } catch (error) {
+        console.warn('Could not read appearance preference', error);
+      }
+      const dark =
+        appearance === 'dark' ||
+        (appearance !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#142b2c' : '#bce6db';
+    </script>
+    <style>
+      html[data-boot] #app {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loading[hidden] {
+        display: none !important;
+      }
+      #loading {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #f7f2df;
+        color: #173e3d;
+        font-family: 'Avenir Next', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+      html[data-theme='dark'] #loading {
+        background: #142c30;
+        color: #f4ecd7;
+      }
+      #loading .boot-content {
+        width: min(100%, 380px);
+        text-align: center;
+      }
+      #loading .boot-brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 32px;
+        text-align: left;
+      }
+      #loading img {
+        width: 90px;
+        height: 90px;
+        object-fit: contain;
+      }
+      #boot-name {
+        font-size: clamp(22px, 5vw, 32px);
+        font-weight: 850;
+        letter-spacing: 0.04em;
+      }
+      #loading .boot-domain {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin-top: 5px;
+      }
+      #loading .boot-meter {
+        position: relative;
+        height: 8px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #173e3d20;
+      }
+      #boot-progress {
+        display: block;
+        appearance: none;
+        width: 100%;
+        height: 8px;
+        border: 0;
+        background: transparent;
+        accent-color: #eb704b;
+      }
+      #boot-progress::-webkit-progress-bar {
+        background: transparent;
+      }
+      #boot-progress::-webkit-progress-value {
+        background: #eb704b;
+        border-radius: 8px;
+      }
+      #boot-progress::-moz-progress-bar {
+        background: #eb704b;
+      }
+      #loading[data-stage='module'] #boot-progress {
+        opacity: 0;
+      }
+      #loading[data-stage='module'] .boot-meter::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 35%;
+        background: #eb704b;
+        border-radius: 8px;
+        animation: boot-slide 1.25s ease-in-out infinite alternate;
+      }
+      #boot-status {
+        margin: 18px 0 8px;
+        font-weight: 600;
+      }
+      #boot-detail {
+        font-size: 13px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+      #boot-retry {
+        padding: 11px 24px;
+        border: 0;
+        outline: none;
+        border-radius: 10px;
+        color: #fffbea;
+        background: #eb704b;
+        font: inherit;
+        cursor: pointer;
+      }
+      #boot-retry:focus-visible {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        background: #bf5234;
+      }
+      @keyframes boot-slide {
+        to {
+          transform: translateX(185%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #loading[data-stage='module'] .boot-meter::after {
+          animation: none;
+          left: 32%;
+        }
+      }
+    </style>
+    <script>
+      (() => {
+        let saved;
+        try {
+          saved = localStorage.getItem('pelican-locale');
+        } catch (error) {
+          console.warn('Could not read language preference', error);
+        }
+        const detected = (navigator.languages?.[0] || navigator.language)
+          .toLowerCase()
+          .startsWith('zh')
+          ? 'zh'
+          : 'en';
+        const locale = location.pathname.startsWith('/en/')
+          ? 'en'
+          : ['zh', 'en'].includes(saved)
+            ? saved
+            : detected;
+        const labels = {
+          zh: {
+            brand: '鹈鹕骑车',
+            loadingTitle: '正在把单车推到海边…',
+            loading: '正在准备 3D 世界',
+            errorTitle: '游戏启动遇到问题',
+            errorHelp: '请刷新页面重试',
+            bootRetry: '重新加载',
+          },
+          en: {
+            brand: 'Pelican Pedal',
+            loadingTitle: 'Wheeling the bike to the coast…',
+            loading: 'Preparing your 3D world',
+            errorTitle: 'The game could not start',
+            errorHelp: 'Please reload the page',
+            bootRetry: 'Reload',
+          },
+        };
+        let copy = labels[locale],
+          failure = null,
+          progress = null,
+          done = false;
+        const get = (id) => document.getElementById(id);
+        function render() {
+          const layer = get('loading');
+          if (!layer) return;
+          get('boot-name').textContent = copy.brand;
+          get('boot-status').textContent = failure ? copy.errorTitle : copy.loadingTitle;
+          get('boot-detail').textContent = failure
+            ? `${copy.errorHelp} · ${failure.message || failure}`
+            : `${copy.loading}${progress ? ` · ${progress.completed} / ${progress.total}` : ''}`;
+          get('boot-retry').textContent = labels[locale].bootRetry;
+          get('boot-retry').hidden = !failure;
+          layer.setAttribute('role', failure ? 'alert' : 'status');
+          layer.dataset.stage = failure ? 'error' : progress ? 'resources' : 'module';
+          const meter = get('boot-progress');
+          meter.setAttribute('aria-label', copy.loading);
+          if (progress) {
+            meter.max = progress.total;
+            meter.value = progress.completed;
+          }
+          layer.hidden = done && !failure;
+          if (get('app')) get('app').inert = !layer.hidden;
+          if (layer.hidden) document.documentElement.removeAttribute('data-boot');
+          else document.documentElement.dataset.boot = failure ? 'error' : 'loading';
+        }
+        window.__pelicanBoot = {
+          locale,
+          render,
+          setCopy(value) {
+            const { brand, loadingTitle, loading, errorTitle } = value;
+            copy = { ...copy, brand, loadingTitle, loading, errorTitle };
+            render();
+          },
+          progress(value) {
+            if (!failure && !done) {
+              progress = value;
+              render();
+            }
+          },
+          complete() {
+            if (!failure && progress?.completed === progress?.total && progress) {
+              done = true;
+              render();
+            }
+          },
+          fail(error, value) {
+            if (value) copy = { ...copy, ...value };
+            failure ||= error || new Error('Unknown startup error');
+            done = false;
+            render();
+          },
+        };
+        window.addEventListener(
+          'error',
+          (event) => {
+            const target = event.target;
+            if (
+              target instanceof HTMLScriptElement ||
+              (target instanceof HTMLLinkElement && target.rel === 'stylesheet')
+            ) {
+              if (target.hasAttribute('data-boot-required')) {
+                target.dataset.bootState = 'error';
+                window.__pelicanBoot.fail(
+                  new Error(`Resource failed: ${target.src || target.href}`),
+                );
+              } else console.warn('Optional resource failed', target.src || target.href);
+            } else if (event.error || event.message)
+              window.__pelicanBoot.fail(event.error || new Error(event.message));
+          },
+          true,
+        );
+        window.addEventListener(
+          'keydown',
+          (event) => {
+            if (!document.documentElement.hasAttribute('data-boot')) return;
+            event.stopImmediatePropagation();
+            if (
+              !event.metaKey &&
+              !event.ctrlKey &&
+              event.key !== 'Tab' &&
+              !get('loading')?.contains(event.target)
+            )
+              event.preventDefault();
+          },
+          true,
+        );
+        window.addEventListener('unhandledrejection', (event) =>
+          window.__pelicanBoot.fail(event.reason),
+        );
+      })();
+    </script>
+    <!--seo-head-->
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <noscript
+      ><style>
+        #loading {
+          display: none;
+        }
+        html[data-boot] #app {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      </style>
+      <p>启用 JavaScript 即可开始骑行 / Enable JavaScript to start your ride</p></noscript
+    >
+    <div id="loading" data-stage="module" role="status" aria-live="polite">
+      <div class="boot-content">
+        <div class="boot-brand">
+          <img src="/src/assets/pelican-mark.png" alt="" width="90" height="90" />
+          <div>
+            <div id="boot-name">鹈鹕骑车</div>
+            <div class="boot-domain">tihuqiche.com</div>
+          </div>
+        </div>
+        <div class="boot-meter"><progress id="boot-progress" aria-label="正在加载"></progress></div>
+        <p id="boot-status">正在把单车推到海边…</p>
+        <p id="boot-detail">正在准备 3D 世界</p>
+        <button id="boot-retry" type="button" hidden onclick="location.reload()">重新加载</button>
+      </div>
+    </div>
+    <div id="app"><!--app-html--></div>
+    <script>
+      window.__pelicanBoot.render();
+    </script>
+    <script type="module" data-boot-required src="/src/main.js"></script>
+  </body>
+</html>

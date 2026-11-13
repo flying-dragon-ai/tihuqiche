@@ -1,0 +1,56 @@
+{
+  "name": "tihuqiche",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "description": "鹈鹕骑车：可离线游玩的单文件 3D 骑车闯关游戏",
+  "homepage": "https://tihuqiche.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flying-dragon-ai/tihuqiche.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
+    "build": "node scripts/build.mjs",
+    "test": "pnpm run test:unit && pnpm run build && node tests/game.cjs",
+    "assets": "node scripts/generate-social-assets.mjs",
+    "assets:outfits": "node scripts/generate-outfit-thumbnails.mjs",
+    "test:unit": "node --test tests/*.test.js",
+    "share:qr": "node scripts/generate-share-qr.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "deadcode:check": "knip",
+    "deadcode:report": "knip --reporter json > deadcode-report.json",
+    "deadcode:files": "node scripts/find-unused.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@vitejs/plugin-vue": "6.0.8",
+    "eslint": "10.14.0",
+    "eslint-plugin-unused-imports": "4.4.1",
+    "eslint-plugin-vue": "10.12.1",
+    "globals": "17.14.0",
+    "knip": "6.45.1",
+    "playwright": "1.62.1",
+    "prettier": "3.9.10",
+    "qrcode": "1.5.4",
+    "vite": "8.2.2",
+    "vite-plugin-singlefile": "2.3.3"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "7.3.1",
+    "@fortawesome/free-brands-svg-icons": "7.3.1",
+    "@fortawesome/free-solid-svg-icons": "7.3.1",
+    "@fortawesome/vue-fontawesome": "3.3.3",
+    "three": "0.160.1",
+    "vue": "3.5.42"
+  }
+}

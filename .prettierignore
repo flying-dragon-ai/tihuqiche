@@ -1,0 +1,10 @@
+node_modules/
+dist/
+vendor/
+test-results/
+output/
+pnpm-lock.yaml
+src/share-qr.js
+src/outfit-thumbnails.js
+public/
+docs/
