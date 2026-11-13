@@ -53,7 +53,7 @@
 - [部署到 GitHub Pages](#部署到-github-pages)
 - [Star 历史](#star-历史)
 - [贡献者](#贡献者)
-- [社区与许可证](#社区与许可证)
+- [许可证](#许可证)
 
 ---
 
@@ -449,10 +449,8 @@ pnpm deadcode:files -- --delete  # 确认后删除
 
 ---
 
-## 社区与许可证
+## 许可证
 
-- 社区支持：[LinuxDO](https://linux.do)
-- 上游项目：[Licoy/tihuqiche](https://github.com/Licoy/tihuqiche)；本仓库是整理与优化后的副本
 - 项目使用 [MIT License](LICENSE)
 - Three.js `0.160.1` 使用其原始 [MIT License](vendor/three/LICENSE)
 
